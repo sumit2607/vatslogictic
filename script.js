@@ -135,3 +135,114 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
     if (target) { e.preventDefault(); target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   });
 });
+
+// ─── GALLERY FILTER ──────────────────────────────────────────────────────────
+const galleryData = [
+  { src: 'portfolio_images/port1.jpeg', title: 'Bulk Storage Operations',        cat: 'Warehouse',  desc: 'Secure stacking & organized inventory management at our partner warehouse' },
+  { src: 'portfolio_images/port2.jpeg', title: 'Dispatch Ready Inventory',       cat: 'Warehouse',  desc: 'Professionally packed and labelled shipments queued for delivery dispatch' },
+  { src: 'portfolio_images/port3.jpeg', title: 'Premium Vehicle Packaging',      cat: 'Packaging',  desc: 'Full bubble wrap & tape protection for fragile two-wheelers — zero damage guaranteed' },
+  { src: 'portfolio_images/port4.jpeg', title: '360° Protective Wrap',           cat: 'Packaging',  desc: 'Complete rear-to-front protection for safe intercity vehicle transportation' },
+  { src: 'portfolio_images/port5.jpeg', title: 'Long-Distance Vehicle Shipping', cat: 'Transport',  desc: 'Secured two-wheeler transport across India with full insurance coverage' },
+];
+
+const filterBtns   = document.querySelectorAll('.gallery-filter-btn');
+const galleryItems = document.querySelectorAll('.gallery-item');
+
+filterBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    filterBtns.forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
+    btn.classList.add('active');
+    btn.setAttribute('aria-selected','true');
+    const filter = btn.dataset.filter;
+    galleryItems.forEach((item, i) => {
+      const show = filter === 'all' || item.dataset.category === filter;
+      if (show) {
+        item.style.display = '';
+        item.style.animation = 'none';
+        void item.offsetWidth;
+        item.style.animationDelay = (i * 60) + 'ms';
+        item.style.animation = 'galleryFadeIn 0.45s ease forwards';
+      } else {
+        item.style.display = 'none';
+      }
+    });
+  });
+});
+
+// ─── LIGHTBOX ────────────────────────────────────────────────────────────────
+const lightboxOverlay = document.getElementById('lightboxOverlay');
+const lightboxImg     = document.getElementById('lightboxImg');
+const lightboxCaption = document.getElementById('lightboxCaption');
+const lightboxCounter = document.getElementById('lightboxCounter');
+const lightboxClose   = document.getElementById('lightboxClose');
+const lightboxPrev    = document.getElementById('lightboxPrev');
+const lightboxNext    = document.getElementById('lightboxNext');
+
+let currentLBIndex = 0;
+
+function getVisibleItems() {
+  return [...galleryItems].filter(item => item.style.display !== 'none');
+}
+
+function openLightbox(idx) {
+  const visible = getVisibleItems();
+  if (!visible.length) return;
+  currentLBIndex = ((idx % visible.length) + visible.length) % visible.length;
+  const dataIdx  = parseInt(visible[currentLBIndex].dataset.index);
+  const data     = galleryData[dataIdx];
+  lightboxImg.src           = data.src;
+  lightboxImg.alt           = data.title;
+  lightboxCaption.textContent = data.title + ' — ' + data.desc;
+  lightboxCounter.textContent = (currentLBIndex + 1) + ' / ' + visible.length;
+  lightboxOverlay.classList.add('active');
+  lightboxOverlay.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+  lightboxOverlay.classList.remove('active');
+  lightboxOverlay.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+  setTimeout(() => { lightboxImg.src = ''; }, 350);
+}
+
+function showLBNext() { openLightbox(currentLBIndex + 1); }
+function showLBPrev() { openLightbox(currentLBIndex - 1); }
+
+// Zoom button → open lightbox
+document.querySelectorAll('.gallery-zoom-btn').forEach(btn => {
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const item    = btn.closest('.gallery-item');
+    const visible = getVisibleItems();
+    openLightbox(visible.indexOf(item));
+  });
+});
+
+// Card click → open lightbox
+galleryItems.forEach(item => {
+  item.addEventListener('click', e => {
+    if (e.target.closest('.gallery-zoom-btn')) return;
+    const visible = getVisibleItems();
+    openLightbox(visible.indexOf(item));
+  });
+});
+
+lightboxClose.addEventListener('click', closeLightbox);
+lightboxNext.addEventListener('click',  e => { e.stopPropagation(); showLBNext(); });
+lightboxPrev.addEventListener('click',  e => { e.stopPropagation(); showLBPrev(); });
+lightboxOverlay.addEventListener('click', e => { if (e.target === lightboxOverlay) closeLightbox(); });
+
+document.addEventListener('keydown', e => {
+  if (!lightboxOverlay.classList.contains('active')) return;
+  if (e.key === 'Escape')     closeLightbox();
+  if (e.key === 'ArrowRight') showLBNext();
+  if (e.key === 'ArrowLeft')  showLBPrev();
+});
+
+let touchStartX = 0;
+lightboxOverlay.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; }, { passive: true });
+lightboxOverlay.addEventListener('touchend',   e => {
+  const diff = touchStartX - e.changedTouches[0].clientX;
+  if (Math.abs(diff) > 50) diff > 0 ? showLBNext() : showLBPrev();
+});
